@@ -105,10 +105,8 @@
       color: var(--fg);
       outline: none;
       font-size: 0.95rem;
-    }
-
-    input[type="text"]::placeholder {
-      color: rgba(28,29,34,0.55);
+      /* Inherit Poppins explicitly */
+      font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
     }
 
     button {
@@ -120,15 +118,11 @@
       font-weight: 600;
       cursor: pointer;
       transition: transform 0.04s ease, background 0.2s ease;
+      /* Poppins sui bottoni */
+      font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
     }
     button:hover { background: rgba(28,29,34,0.06); }
     button:active { transform: translateY(1px); }
-
-    .muted {
-      font-size: 0.85rem;
-      opacity: 0.8;
-      margin-top: 10px;
-    }
 
     /* Compact mode for small iframes */
     @media (max-width: 420px) {
@@ -163,13 +157,11 @@
 
         <div class="field" style="align-self:end; display:flex; gap:8px;">
           <button id="applyBtn">Apply</button>
+          <button id="resetBtn" title="Reset countdown">Reset</button>
           <button id="shareBtn" title="Copy URL with settings">Share URL</button>
         </div>
       </div>
-
-      <div class="muted" id="hint">
-        Tip: Append <code>?label=Tour+Launch&amp;date=2025-10-15&amp;hideui=1</code> to the URL for a clean Notion embed.
-      </div>
+      <!-- Footer rimosso -->
     </div>
   </div>
 
@@ -182,7 +174,6 @@
     function setParams(params) {
       const url = new URL(window.location.href);
       url.search = params.toString();
-      // Update address bar without reload
       history.replaceState(null, "", url.toString());
     }
 
@@ -190,7 +181,6 @@
       if (navigator.clipboard && window.isSecureContext) {
         return navigator.clipboard.writeText(text);
       }
-      // Fallback
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.setAttribute("readonly", "");
@@ -231,8 +221,8 @@
     const labelInput = document.getElementById("labelInput");
     const dateInput = document.getElementById("dateInput");
     const applyBtn = document.getElementById("applyBtn");
+    const resetBtn = document.getElementById("resetBtn");     // NEW
     const shareBtn = document.getElementById("shareBtn");
-    const hint = document.getElementById("hint");
 
     // ---------- Init from URL ----------
     const params = getParams();
@@ -293,9 +283,22 @@
       render();
     });
 
+    // ----- RESET -----
+    resetBtn.addEventListener("click", () => {
+      // svuota la data, aggiorna URL e UI
+      dateInput.value = "";
+      const p = getParams();
+      const label = labelInput.value.trim() || "Your Event";
+      p.set("label", label);
+      p.delete("date");
+      setParams(p);
+      // Reimposta display
+      daysOut.textContent = "--";
+      daysCaption.textContent = "set a target date";
+    });
+
     shareBtn.addEventListener("click", () => {
       const url = new URL(window.location.href);
-      // Ensure current edits are included
       const p = getParams();
       const label = labelInput.value.trim() || "Your Event";
       p.set("label", label);
@@ -314,7 +317,7 @@
       setEditing(false);
       controls.hidden = true;
       editToggle.style.display = "none";
-      hint.style.display = "none";
+      // footer rimosso, quindi niente hint da nascondere
     }
   </script>
 </body>
