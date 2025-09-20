@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notion-Friendly Countdown</title>
+
+  <!-- Poppins font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg: #F4E8D2;      /* background */
+      --fg: #1C1D22;      /* text & elements */
+      --card: #FFFFFF;    /* white card */
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
+    }
+
+    .wrap {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 720px;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 2px 18px rgba(28,29,34,0.08);
+      border: 1px solid rgba(28,29,34,0.08);
+    }
+
+    .headline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .label-display {
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+
+    .count {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      padding: 18px;
+      border: 1px dashed rgba(28,29,34,0.18);
+      border-radius: var(--radius);
+      text-align: center;
+    }
+
+    .days {
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .sub {
+      font-size: 0.95rem;
+      opacity: 0.9;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    input[type="text"],
+    input[type="date"] {
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(28,29,34,0.2);
+      background: #fff;
+      color: var(--fg);
+      outline: none;
+      font-size: 0.95rem;
+    }
+
+    input[type="text"]::placeholder {
+      color: rgba(28,29,34,0.55);
+    }
+
+    button {
+      padding: 12px 16px;
+      border: 1px solid var(--fg);
+      background: transparent;
+      color: var(--fg);
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.04s ease, background 0.2s ease;
+    }
+    button:hover { background: rgba(28,29,34,0.06); }
+    button:active { transform: translateY(1px); }
+
+    .muted {
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-top: 10px;
+    }
+
+    /* Compact mode for small iframes */
+    @media (max-width: 420px) {
+      .controls { grid-template-columns: 1fr; }
+      .headline { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="region" aria-label="Countdown">
+      <div class="headline">
+        <div class="label-display" id="labelDisplay">Your Event</div>
+        <button id="editToggle" aria-pressed="false" title="Edit label and date">Edit</button>
+      </div>
+
+      <div class="count" aria-live="polite">
+        <div class="days" id="daysOut">--</div>
+        <div class="sub" id="daysCaption">days remaining</div>
+      </div>
+
+      <div class="controls" id="controls" hidden>
+        <div class="field">
+          <label for="labelInput">Label</label>
+          <input id="labelInput" type="text" placeholder="e.g., Tour Launch" />
+        </div>
+
+        <div class="field">
+          <label for="dateInput">Target date</label>
+          <input id="dateInput" type="date" />
+        </div>
+
+        <div class="field" style="align-self:end; display:flex; gap:8px;">
+          <button id="applyBtn">Apply</button>
+          <button id="shareBtn" title="Copy URL with settings">Share URL</button>
+        </div>
+      </div>
+
+      <div class="muted" id="hint">
+        Tip: Append <code>?label=Tour+Launch&amp;date=2025-10-15&amp;hideui=1</code> to the URL for a clean Notion embed.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Utilities ----------
+    function getParams() {
+      return new URLSearchParams(window.location.search);
+    }
+
+    function setParams(params) {
+      const url = new URL(window.location.href);
+      url.search = params.toString();
+      // Update address bar without reload
+      history.replaceState(null, "", url.toString());
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text);
+      }
+      // Fallback
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "absolute";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch {}
+      document.body.removeChild(ta);
+      return Promise.resolve();
+    }
+
+    // Normalize to noon local time to avoid DST edge cases
+    function toLocalNoon(date) {
+      const d = new Date(date);
+      d.setHours(12, 0, 0, 0);
+      return d;
+    }
+
+    // Difference in whole days between today and target (target - today)
+    function daysDiff(targetDate) {
+      const target = toLocalNoon(targetDate);
+      const today = toLocalNoon(new Date());
+      const msPerDay = 24 * 60 * 60 * 1000;
+      return Math.round((target - today) / msPerDay);
+    }
+
+    function pluralize(n, singular, plural) {
+      return Math.abs(n) === 1 ? singular : plural;
+    }
+
+    // ---------- Elements ----------
+    const labelDisplay = document.getElementById("labelDisplay");
+    const daysOut = document.getElementById("daysOut");
+    const daysCaption = document.getElementById("daysCaption");
+    const controls = document.getElementById("controls");
+    const editToggle = document.getElementById("editToggle");
+    const labelInput = document.getElementById("labelInput");
+    const dateInput = document.getElementById("dateInput");
+    const applyBtn = document.getElementById("applyBtn");
+    const shareBtn = document.getElementById("shareBtn");
+    const hint = document.getElementById("hint");
+
+    // ---------- Init from URL ----------
+    const params = getParams();
+    const initialLabel = params.get("label") || "Your Event";
+    const initialDate = params.get("date") || "";
+    const hideUI = params.get("hideui") === "1";
+
+    labelDisplay.textContent = initialLabel;
+    labelInput.value = initialLabel;
+    if (initialDate) dateInput.value = initialDate;
+
+    function render() {
+      const dateVal = dateInput.value || initialDate;
+      if (!dateVal) {
+        daysOut.textContent = "--";
+        daysCaption.textContent = "set a target date";
+        return;
+      }
+      const dd = daysDiff(dateVal);
+
+      if (dd > 0) {
+        daysOut.textContent = dd.toString();
+        daysCaption.textContent = `${pluralize(dd, "day", "days")} remaining`;
+      } else if (dd === 0) {
+        daysOut.textContent = "0";
+        daysCaption.textContent = "Today is the day!";
+      } else {
+        const passed = Math.abs(dd);
+        daysOut.textContent = passed.toString();
+        daysCaption.textContent = `${pluralize(passed, "day", "days")} since the event`;
+      }
+    }
+
+    render();
+
+    // ---------- UI Behavior ----------
+    function setEditing(on) {
+      controls.hidden = !on;
+      editToggle.setAttribute("aria-pressed", String(on));
+      editToggle.textContent = on ? "Done" : "Edit";
+    }
+
+    editToggle.addEventListener("click", () => {
+      setEditing(controls.hidden); // toggle
+    });
+
+    applyBtn.addEventListener("click", () => {
+      const label = labelInput.value.trim() || "Your Event";
+      const dateVal = dateInput.value || "";
+      labelDisplay.textContent = label;
+
+      // Update URL params (no reload)
+      const p = getParams();
+      p.set("label", label);
+      if (dateVal) { p.set("date", dateVal); } else { p.delete("date"); }
+      setParams(p);
+
+      render();
+    });
+
+    shareBtn.addEventListener("click", () => {
+      const url = new URL(window.location.href);
+      // Ensure current edits are included
+      const p = getParams();
+      const label = labelInput.value.trim() || "Your Event";
+      p.set("label", label);
+      if (dateInput.value) p.set("date", dateInput.value);
+      url.search = p.toString();
+      copyToClipboard(url.toString()).then(() => {
+        shareBtn.textContent = "Copied!";
+        setTimeout(() => (shareBtn.textContent = "Share URL"), 1200);
+      });
+    });
+
+    dateInput.addEventListener("change", render);
+
+    // Hide UI if requested (for clean Notion embeds)
+    if (hideUI) {
+      setEditing(false);
+      controls.hidden = true;
+      editToggle.style.display = "none";
+      hint.style.display = "none";
+    }
+  </script>
+</body>
+</html>
